@@ -4,7 +4,6 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.Map;
 
-enum OPERATION {ACCEPT_FILE, DELETE_FILE, RENAME_FILE}
 
 public interface DistributedFileServer extends Remote {
 
@@ -26,7 +25,7 @@ public interface DistributedFileServer extends Remote {
    * in case of accept
    * @throws RemoteException upon failure
    */
-  void acceptRequest(OPERATION operation, String fileId, byte[] data) throws RemoteException;
+  void acceptRequest(Operation operation, String fileId, byte[] data) throws RemoteException;
 
   /**
    * Fetches all files from the server
@@ -68,5 +67,5 @@ public interface DistributedFileServer extends Remote {
    * @param newFileName of the file to be renamed
    * @throws RemoteException upon failure
    */
-  void renameFile(String fileId, String newFileName) throws RemoteException;
+  void renameFile(String fileId, String newFileName, Long duration) throws RemoteException;
 }
