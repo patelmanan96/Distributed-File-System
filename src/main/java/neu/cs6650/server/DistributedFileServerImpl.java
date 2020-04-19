@@ -1,4 +1,4 @@
-package server;
+package neu.cs6650.server;
 
 import java.rmi.RemoteException;
 import java.util.Map;
