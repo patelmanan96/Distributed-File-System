@@ -20,9 +20,9 @@ public interface DistributedFileServer extends Remote {
    * Perform the operation promised
    *
    * @param operation Accept a file, delete a file, rename a file
-   * @param fileId to perform the operation on
-   * @param data file data, null in case of delete, new file name in case of rename and entire file
-   * in case of accept
+   * @param fileId    to perform the operation on
+   * @param data      file data, null in case of delete, new file name in case of rename and entire
+   *                  file in case of accept
    * @throws RemoteException upon failure
    */
   void acceptRequest(Operation operation, String fileId, byte[] data) throws RemoteException;
@@ -63,7 +63,7 @@ public interface DistributedFileServer extends Remote {
   /**
    * Rename file on the neu.cs6650.server
    *
-   * @param fileId of file to be deleted
+   * @param fileId      of file to be deleted
    * @param newFileName of the file to be renamed
    * @throws RemoteException upon failure
    */
