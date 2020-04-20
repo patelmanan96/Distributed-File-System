@@ -11,6 +11,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.Map;
+import java.util.Random;
 import java.util.Scanner;
 import neu.cs6650.loadbalancer.ILoadBalancer;
 import neu.cs6650.loadbalancer.RoundRobinLoadBalancer;
@@ -28,7 +29,7 @@ public class Client implements IClient {
 
   private String address;
   private int port;
-  private Map<String, String> fileList;
+  private Map<Integer, String> fileList;
   private Scanner reader;
   private Logger logger = LogManager.getLogger(this.getClass());
 
@@ -116,7 +117,7 @@ public class Client implements IClient {
       }
       case 2: {
         byte[] file = this.getFileFromUser();
-        fileServer.uploadFile(file);
+        fileServer.uploadFile(file, "tempName"+new Random().nextInt());
         return "File uploaded successfully.";
       }
 

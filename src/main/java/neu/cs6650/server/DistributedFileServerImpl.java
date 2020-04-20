@@ -1,11 +1,13 @@
 package neu.cs6650.server;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
@@ -14,27 +16,40 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class DistributedFileServerImpl implements DistributedFileServer {
+public class DistributedFileServerImpl extends UnicastRemoteObject implements
+    DistributedFileServer {
 
+  private static final Logger logger = Logger.getLogger(DistributedFileServerImpl.class.getName());
   static Set<Integer> serverPorts = new HashSet<Integer>(
       Arrays.asList(7000, 7001, 7002, 7003, 7004));
-  private final Logger logger;
   Map<Integer, String> fileNameAndNumber;
   private int serverId;
   private String directory;
   private long paxosId;
   private int localServerFileCount;
 
-  public DistributedFileServerImpl(int serverPort) {
-    logger = Logger.getLogger(DistributedFileServerImpl.class.getName());
+  public DistributedFileServerImpl(int serverPort) throws RemoteException {
     serverPorts.remove(serverPort);
     serverId = serverPort;
     directory = String.valueOf(serverId);
-    if (!(new File(directory).mkdir())) {
+    File newDir = new File(directory);
+    this.delete(newDir);
+    if (!newDir.mkdir()) {
       logger.log(Level.SEVERE, "Unable to create directory");
       throw new RuntimeException();
     }
     localServerFileCount = 0;
+  }
+
+  private void delete(File f) {
+    if (f.isDirectory()) {
+      for (File c : f.listFiles()) {
+        delete(c);
+      }
+    }
+    if (!f.delete()) {
+      logger.log(Level.SEVERE, "Failed to delete file : {0}", f);
+    }
   }
 
   @Override
