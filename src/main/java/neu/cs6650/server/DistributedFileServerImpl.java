@@ -1,7 +1,7 @@
 package neu.cs6650.server;
 
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.rmi.NotBoundException;
@@ -26,7 +26,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
   Map<Integer, String> fileNameAndNumber;
   private int serverId;
   private String directory;
-  private long paxosId;
+  private long paxosId = System.currentTimeMillis();
   private int localServerFileCount;
 
   public DistributedFileServerImpl(int serverPort) throws RemoteException {
@@ -144,7 +144,6 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
   public void acceptRequest(Operation operation, String fileName, byte[] data) {
     if (operation == Operation.UPLOAD_FILE) {
       this.writeToFile(fileName, data);
-      this.fileNameAndNumber.put(localServerFileCount++, fileName);
     } else if (operation == Operation.DELETE_FILE) {
       this.deleteFileWithName(fileName);
     } else {
@@ -172,9 +171,20 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       }
       fos = new FileOutputStream(f);
       fos.write(data);
-      fos.close();
+      this.fileNameAndNumber.put(localServerFileCount++, fileName);
+      fos.flush();
+      logger.log(Level.INFO, "Upload succeeded for server FileStore at port {0}", serverId);
     } catch (IOException e) {
-      // log
+      logger.log(Level.SEVERE, "Upload failure for server FileStore at port {0} due to : {1}",
+          new Object[]{serverId, e.getMessage()});
+    } finally {
+      try {
+        if (fos != null) {
+          fos.close();
+        }
+      } catch (IOException e) {
+        logger.log(Level.SEVERE, "Unable to close stream");
+      }
     }
   }
 
@@ -197,7 +207,25 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
 
   @Override
   public byte[] downloadFile(String fileId) {
-    return new byte[0];
+    logger.log(Level.INFO, "File download request for id {0} and name {1}",
+        new Object[]{fileId, fileNameAndNumber.get(Integer.parseInt(fileId))});
+    File toFetch = new File(directory, this.fileNameAndNumber.get(Integer.parseInt(fileId)));
+    if (!toFetch.exists()) {
+      logger.log(Level.SEVERE, "File Does Not exist on the server");
+      return new byte[]{};
+    }
+    byte[] downloadedFile = new byte[(int) toFetch.length()];
+    FileInputStream fin = null;
+    try {
+      fin = new FileInputStream(toFetch);
+      fin.read(downloadedFile);
+      fin.close();
+    } catch (Exception e) {
+      logger.log(Level.SEVERE, "Error While reading file");
+    }
+    logger.log(Level.INFO, "File download succeeded for id {0} and name {1}",
+        new Object[]{fileId, fileNameAndNumber.get(Integer.parseInt(fileId))});
+    return downloadedFile;
   }
 
   @Override
