@@ -8,10 +8,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.Map;
 import java.util.Scanner;
 import neu.cs6650.loadbalancer.ILoadBalancer;
-import neu.cs6650.loadbalancer.LoadBalancer;
+import neu.cs6650.loadbalancer.RoundRobinLoadBalancer;
 import neu.cs6650.server.DistributedFileServer;
 import neu.cs6650.utils.Constants;
 import org.apache.logging.log4j.Level;
@@ -34,14 +36,17 @@ public class Client implements IClient {
     Configurator.setLevel(logger.getName(), Level.ALL);
     this.address = address;
     this.reader = new Scanner(new InputStreamReader(System.in));
-    this.loadBalancer = new LoadBalancer();
   }
 
   @Override
   public void start() {
-    this.port = this.loadBalancer.getServerPort();
+
     while (true) {
       try {
+        Registry registry = LocateRegistry.getRegistry(Constants.IP, Constants.DEFAULT_LB_PORT);
+        this.loadBalancer = (ILoadBalancer) registry.lookup(Constants.RR_LOAD_BALANCER);
+
+        this.port = this.loadBalancer.getServerPort();
         fileServer = (DistributedFileServer) Naming
             .lookup("//" + address + ":" + port + "/" + Constants.SERVER_NAME);
         logger.info("Remote connection established. Host: {} Port: {}", address, port);
