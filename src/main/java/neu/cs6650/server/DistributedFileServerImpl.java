@@ -10,6 +10,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +32,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
   public DistributedFileServerImpl(int serverPort) throws RemoteException {
     serverPorts.remove(serverPort);
     serverId = serverPort;
+    fileNameAndNumber = new HashMap<>();
     directory = String.valueOf(serverId);
     File newDir = new File(directory);
     this.delete(newDir);
@@ -115,7 +117,6 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     } catch (Exception e) {
       logger.log(Level.SEVERE, "Failed to Accept Request for KVStore at port {0} ", port);
     }
-    this.acceptRequest(Operation.UPLOAD_FILE, fileName, data);
   }
 
   private void sendDeleteAcceptRequest(int port, byte[] data, String fileName) {
@@ -126,7 +127,6 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     } catch (Exception e) {
       logger.log(Level.SEVERE, "Failed to Accept Request for KVStore at port {0} ", port);
     }
-    this.acceptRequest(Operation.UPLOAD_FILE, fileName, data);
   }
 
   private void sendRenameAcceptRequest(int port, byte[] data, String fileName) {
@@ -137,7 +137,6 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     } catch (Exception e) {
       logger.log(Level.SEVERE, "Failed to Accept Request for KVStore at port {0} ", port);
     }
-    this.acceptRequest(Operation.UPLOAD_FILE, fileName, data);
   }
 
 
@@ -193,6 +192,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       ports = this.sendPrepare();
     }
     ports.forEach(port -> this.sendUploadAcceptRequest(port, data, fileName));
+    this.acceptRequest(Operation.UPLOAD_FILE, fileName, data);
   }
 
   @Override
