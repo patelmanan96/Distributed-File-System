@@ -129,13 +129,14 @@ public class Client implements IClient {
       }
       case 2: {
         byte[] file = this.getFileFromUser();
+        // Ask for file name from the user
         fileServer.uploadFile(file, "tempName" + new Random().nextInt());
         return "File uploaded successfully.";
       }
 
       case 3: {
         System.out.println("Enter fileId: ");
-        String fileId = this.reader.nextLine();
+        String fileId = this.reader.nextLine().trim();
         byte[] downloadedFile = fileServer.downloadFile(fileId);
         String savedPath = saveDownloadedFile(fileId, downloadedFile);
         return "File downloaded successfully to: " + savedPath;
@@ -178,7 +179,7 @@ public class Client implements IClient {
    */
   private String saveDownloadedFile(String fileId, byte[] downloadedFile)
       throws FileNotFoundException, IOException {
-    String serverFilePath = this.fileList.get(fileId);
+    String serverFilePath = this.fileList.get(Integer.parseInt(fileId));
     String fileName = serverFilePath.substring(serverFilePath.lastIndexOf('/') + 1);
     System.out.println("Enter path to save file: ");
     String savePath = this.reader.nextLine();
@@ -203,7 +204,6 @@ public class Client implements IClient {
 
     String filePath = this.reader.nextLine().trim();
     File file = new File(filePath);
-    System.out.println(file.exists());
     FileInputStream fin = null;
     // create FileInputStream object
     fin = new FileInputStream(file);
