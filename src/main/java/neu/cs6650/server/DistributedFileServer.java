@@ -14,18 +14,18 @@ public interface DistributedFileServer extends Remote {
    * @return same id if successful else null
    * @throws RemoteException upon failure
    */
-  Long prepare(Long id) throws RemoteException;
+  long prepare(long id) throws RemoteException;
 
   /**
    * Perform the operation promised
    *
    * @param operation Accept a file, delete a file, rename a file
-   * @param fileId    to perform the operation on
-   * @param data      file data, null in case of delete, new file name in case of rename and entire
-   *                  file in case of accept
+   * @param fileName to perform the operation on
+   * @param data file data, null in case of delete, new file name in case of rename and entire file
+   * in case of accept
    * @throws RemoteException upon failure
    */
-  void acceptRequest(Operation operation, String fileId, byte[] data) throws RemoteException;
+  void acceptRequest(Operation operation, String fileName, byte[] data) throws RemoteException;
 
   /**
    * Fetches all files from the neu.cs6650.server
@@ -33,24 +33,25 @@ public interface DistributedFileServer extends Remote {
    * @return map of id and names
    * @throws RemoteException upon failure
    */
-  Map<String, String> getAllFilesOnServer() throws RemoteException;
+  Map<Integer, String> getAllFilesOnServer() throws RemoteException;
 
   /**
    * Upload a file from the neu.cs6650.client
    *
-   * @param file to be uploaded from neu.cs6650.client
+   * @param fileName to be set
+   * @param fileContent to be uploaded from client
    * @throws RemoteException upon failure
    */
-  void uploadFile(byte[] file) throws RemoteException;
+  void uploadFile(byte[] fileContent, String fileName) throws RemoteException;
 
   /**
    * Download a file
    *
-   * @param fileId to be downloaded
+   * @param fileName to be downloaded
    * @return the file in byte
    * @throws RemoteException upon failure
    */
-  byte[] downloadFile(String fileId) throws RemoteException;
+  byte[] downloadFile(String fileName) throws RemoteException;
 
   /**
    * Delete file from neu.cs6650.server

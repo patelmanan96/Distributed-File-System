@@ -11,6 +11,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.Map;
+import java.util.Random;
 import java.util.Scanner;
 import neu.cs6650.loadbalancer.ILoadBalancer;
 import neu.cs6650.loadbalancer.RoundRobinLoadBalancer;
@@ -28,7 +29,7 @@ public class Client implements IClient {
 
   private String address;
   private int port;
-  private Map<String, String> fileList;
+  private Map<Integer, String> fileList;
   private Scanner reader;
   private Logger logger = LogManager.getLogger(this.getClass());
 
@@ -38,12 +39,24 @@ public class Client implements IClient {
     this.reader = new Scanner(new InputStreamReader(System.in));
   }
 
+  public static void main(String[] args) {
+    String ip;
+    if (args.length < 1) {
+      ip = Constants.IP;
+    } else {
+      ip = args[0];
+    }
+    Client client = new Client(ip);
+    client.start();
+
+  }
+
   @Override
   public void start() {
 
     while (true) {
       try {
-        Registry registry = LocateRegistry.getRegistry(Constants.IP, Constants.DEFAULT_LB_PORT);
+        Registry registry = LocateRegistry.getRegistry(Constants.DEFAULT_LB_PORT);
         this.loadBalancer = (ILoadBalancer) registry.lookup(Constants.RR_LOAD_BALANCER);
 
         this.port = this.loadBalancer.getServerPort();
@@ -116,7 +129,7 @@ public class Client implements IClient {
       }
       case 2: {
         byte[] file = this.getFileFromUser();
-        fileServer.uploadFile(file);
+        fileServer.uploadFile(file, "tempName" + new Random().nextInt());
         return "File uploaded successfully.";
       }
 
@@ -159,11 +172,9 @@ public class Client implements IClient {
   /**
    * Method to save a downloaded file.
    *
-   * @param fileId         id of the file.
+   * @param fileId id of the file.
    * @param downloadedFile downloaded file as a byte[] array.
    * @return returns download path of the saved file.
-   * @throws FileNotFoundException
-   * @throws IOException
    */
   private String saveDownloadedFile(String fileId, byte[] downloadedFile)
       throws FileNotFoundException, IOException {
@@ -187,36 +198,26 @@ public class Client implements IClient {
    * Method to fetch file to be uploaded to the server from a user.
    *
    * @return file to be uploaded as a byte array.
-   * @throws FileNotFoundException
    */
   private byte[] getFileFromUser() throws FileNotFoundException {
 
-    String filePath = this.reader.nextLine();
+    String filePath = this.reader.nextLine().trim();
     File file = new File(filePath);
+    System.out.println(file.exists());
     FileInputStream fin = null;
     // create FileInputStream object
     fin = new FileInputStream(file);
     // close the streams using close method
+    byte[] buffer = new byte[(int) file.length()];
     try {
       if (fin != null) {
+        fin.read(buffer);
         fin.close();
       }
     } catch (IOException ioe) {
       System.out.println("Error while closing stream: " + ioe);
     }
-    return new byte[(int) file.length()];
-  }
-
-  public static void main(String[] args) {
-    String ip;
-    if (args.length < 1) {
-      ip = Constants.IP;
-    } else {
-      ip = args[0];
-    }
-    Client client = new Client(ip);
-    client.start();
-
+    return buffer;
   }
 } 
 
