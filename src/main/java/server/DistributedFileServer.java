@@ -33,7 +33,7 @@ public interface DistributedFileServer extends Remote {
    * @return map of id and names
    * @throws RemoteException upon failure
    */
-  Map<String, String> getAllFilesOnServer() throws RemoteException;
+  Map<Integer, String> getAllFilesOnServer() throws RemoteException;
 
   /**
    * Upload a file from the client

@@ -19,10 +19,11 @@ public class DistributedFileServerImpl implements DistributedFileServer {
   static Set<Integer> serverPorts = new HashSet<Integer>(
       Arrays.asList(7000, 7001, 7002, 7003, 7004));
   private final Logger logger;
-  Map<String, String> fileNameAndNumber;
+  Map<Integer, String> fileNameAndNumber;
   private int serverId;
   private String directory;
   private long paxosId;
+  private int localServerFileCount;
 
   public DistributedFileServerImpl(int serverPort) {
     logger = Logger.getLogger(DistributedFileServerImpl.class.getName());
@@ -33,6 +34,7 @@ public class DistributedFileServerImpl implements DistributedFileServer {
       logger.log(Level.SEVERE, "Unable to create directory");
       throw new RuntimeException();
     }
+    localServerFileCount = 0;
   }
 
   @Override
@@ -128,6 +130,7 @@ public class DistributedFileServerImpl implements DistributedFileServer {
   public void acceptRequest(Operation operation, String fileName, byte[] data) {
     if (operation == Operation.UPLOAD_FILE) {
       this.writeToFile(fileName, data);
+      this.fileNameAndNumber.put(localServerFileCount++, fileName);
     } else if (operation == Operation.DELETE_FILE) {
       this.deleteFileWithName(fileName);
     } else {
@@ -162,7 +165,7 @@ public class DistributedFileServerImpl implements DistributedFileServer {
   }
 
   @Override
-  public Map<String, String> getAllFilesOnServer() throws RemoteException {
+  public Map<Integer, String> getAllFilesOnServer() {
     return this.fileNameAndNumber;
   }
 
@@ -178,17 +181,17 @@ public class DistributedFileServerImpl implements DistributedFileServer {
   }
 
   @Override
-  public byte[] downloadFile(String fileId) throws RemoteException {
+  public byte[] downloadFile(String fileId) {
     return new byte[0];
   }
 
   @Override
-  public void deleteFile(String fileId) throws RemoteException {
+  public void deleteFile(String fileId) {
 
   }
 
   @Override
-  public void renameFile(String fileId, String newFileName, Long duration) throws RemoteException {
+  public void renameFile(String fileId, String newFileName, Long duration) {
 
   }
 }
