@@ -1,4 +1,4 @@
-package server;
+package neu.cs6650.server;
 
 import java.io.File;
 import java.io.FileOutputStream;

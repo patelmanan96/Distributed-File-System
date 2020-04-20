@@ -1,4 +1,4 @@
-package server;
+package neu.cs6650.server;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -28,7 +28,7 @@ public interface DistributedFileServer extends Remote {
   void acceptRequest(Operation operation, String fileName, byte[] data) throws RemoteException;
 
   /**
-   * Fetches all files from the server
+   * Fetches all files from the neu.cs6650.server
    *
    * @return map of id and names
    * @throws RemoteException upon failure
@@ -36,7 +36,7 @@ public interface DistributedFileServer extends Remote {
   Map<Integer, String> getAllFilesOnServer() throws RemoteException;
 
   /**
-   * Upload a file from the client
+   * Upload a file from the neu.cs6650.client
    *
    * @param fileName to be set
    * @param fileContent to be uploaded from client
@@ -54,7 +54,7 @@ public interface DistributedFileServer extends Remote {
   byte[] downloadFile(String fileName) throws RemoteException;
 
   /**
-   * Delete file from server
+   * Delete file from neu.cs6650.server
    *
    * @param fileId of file to be deleted
    * @throws RemoteException upon failure
@@ -62,9 +62,9 @@ public interface DistributedFileServer extends Remote {
   void deleteFile(String fileId) throws RemoteException;
 
   /**
-   * Rename file on the server
+   * Rename file on the neu.cs6650.server
    *
-   * @param fileId of file to be deleted
+   * @param fileId      of file to be deleted
    * @param newFileName of the file to be renamed
    * @throws RemoteException upon failure
    */
