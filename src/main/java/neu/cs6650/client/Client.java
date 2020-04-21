@@ -11,10 +11,8 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.Map;
-import java.util.Random;
 import java.util.Scanner;
 import neu.cs6650.loadbalancer.ILoadBalancer;
-import neu.cs6650.loadbalancer.RoundRobinLoadBalancer;
 import neu.cs6650.server.DistributedFileServer;
 import neu.cs6650.utils.Constants;
 import org.apache.logging.log4j.Level;
@@ -69,9 +67,10 @@ public class Client implements IClient {
         while (command != Constants.EXIT) {
           try {
             System.out.println(getMenu());
-            System.out.print("Enter your choice.");
+            System.out.println("Enter your choice:");
             // Reads the request command from the user
             command = reader.nextInt();
+            reader.nextLine();
             try {
               String response = this.executeCommand(command);
               logger.info("Response: {}", response);
@@ -128,9 +127,10 @@ public class Client implements IClient {
         return "File list fetched successfully.";
       }
       case 2: {
-        byte[] file = this.getFileFromUser();
-        // Ask for file name from the user
-        fileServer.uploadFile(file, "tempName" + new Random().nextInt());
+        System.out.println("Enter path of the file to be uploaded: ");
+        String filePath = this.reader.nextLine().trim();
+        byte[] file = this.getFileFromUser(filePath);
+        fileServer.uploadFile(file, this.getFileNameFromPath(filePath));
         return "File uploaded successfully.";
       }
 
@@ -154,7 +154,7 @@ public class Client implements IClient {
         String fileId = this.reader.nextLine();
         System.out.println("Enter new name of file: ");
         String newFileName = this.reader.nextLine();
-        System.out.println("Enter duration");
+        System.out.println("Enter duration: ");
         long duration = this.reader.nextLong();
         fileServer.renameFile(fileId, newFileName, duration);
         return "File renamed successfully";
@@ -170,17 +170,21 @@ public class Client implements IClient {
     }
   }
 
+  private String getFileNameFromPath(String path) {
+    return path.substring(path.lastIndexOf('/') + 1);
+  }
+
   /**
    * Method to save a downloaded file.
    *
-   * @param fileId id of the file.
+   * @param fileId         id of the file.
    * @param downloadedFile downloaded file as a byte[] array.
    * @return returns download path of the saved file.
    */
   private String saveDownloadedFile(String fileId, byte[] downloadedFile)
       throws FileNotFoundException, IOException {
     String serverFilePath = this.fileList.get(Integer.parseInt(fileId));
-    String fileName = serverFilePath.substring(serverFilePath.lastIndexOf('/') + 1);
+    String fileName = this.getFileNameFromPath(serverFilePath);
     System.out.println("Enter path to save file: ");
     String savePath = this.reader.nextLine();
 
@@ -200,9 +204,7 @@ public class Client implements IClient {
    *
    * @return file to be uploaded as a byte array.
    */
-  private byte[] getFileFromUser() throws FileNotFoundException {
-
-    String filePath = this.reader.nextLine().trim();
+  private byte[] getFileFromUser(String filePath) throws FileNotFoundException {
     File file = new File(filePath);
     FileInputStream fin = null;
     // create FileInputStream object

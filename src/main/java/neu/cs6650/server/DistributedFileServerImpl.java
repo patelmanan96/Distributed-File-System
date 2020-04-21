@@ -14,14 +14,17 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import neu.cs6650.utils.Constants;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.config.Configurator;
 
 public class DistributedFileServerImpl extends UnicastRemoteObject implements
     DistributedFileServer {
 
-  private static final Logger logger = Logger.getLogger(DistributedFileServerImpl.class.getName());
-  static Set<Integer> serverPorts = new HashSet<Integer>(
+  private static Logger logger = LogManager.getLogger(DistributedFileServerImpl.class);
+  static Set<Integer> serverPorts = new HashSet<>(
       Arrays.asList(7000, 7001, 7002, 7003, 7004));
   Map<Integer, String> fileNameAndNumber;
   private int serverId;
@@ -30,6 +33,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
   private int localServerFileCount;
 
   public DistributedFileServerImpl(int serverPort) throws RemoteException {
+    Configurator.setLevel(logger.getName(), Level.ALL);
     serverPorts.remove(serverPort);
     serverId = serverPort;
     fileNameAndNumber = new HashMap<>();
@@ -37,7 +41,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     File newDir = new File(directory);
     this.delete(newDir);
     if (!newDir.mkdir()) {
-      logger.log(Level.SEVERE, "Unable to create directory");
+      logger.error("Unable to create directory");
       throw new RuntimeException();
     }
     localServerFileCount = 0;
@@ -50,29 +54,27 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       }
     }
     if (!f.delete()) {
-      logger.log(Level.SEVERE, "Failed to delete file : {0}", f);
+      logger.error("Failed to delete file : {}", f);
     }
   }
 
   @Override
   public long prepare(long id) {
-    logger.log(Level.INFO, "Proposal Id at port {0} is {1} and current server paxos Id is {2}",
-        new Object[]{serverId, id, paxosId});
+    logger.info("Proposal Id at port {} is {} and current server paxos Id is {}", serverId, id,
+        paxosId);
 
     if (this.paxosId > id) {
       throw new PromiseException("Requester Id lower than Acceptor Id");
     }
-    logger.log(Level.INFO, "New paxos id at port {0} is {1}",
-        new Object[]{serverId, paxosId});
+    logger.info("New paxos id at port {} is {}", serverId, paxosId);
     this.paxosId = id;
-
     return this.paxosId;
   }
 
   private Set<Integer> sendPrepare() {
 
-    logger.log(Level.INFO, "Trying with paxos id {0} to get consensus for KVStore at port "
-        + "{1} ", new Object[]{paxosId, serverId});
+    logger.info("Trying with paxos id {} to get consensus for KVStore at port {} ", paxosId,
+        serverId);
 
     Set<Integer> promisedPorts = new HashSet<>();
     int upServers = 0;
@@ -80,29 +82,31 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     for (int port : serverPorts) {
       try {
         DistributedFileServer dfs = (DistributedFileServer) LocateRegistry.getRegistry(port)
-            .lookup("FileServer");
+            .lookup(Constants.SERVER_NAME);
         long response = dfs.prepare(this.paxosId);
         promisedPorts.add(port);
-        logger.log(Level.INFO, "Response received from Server at port {0} with id {1}",
-            new Object[]{port, response});
+        logger.info("Response received from Server at port {} with id {}", port, response);
         upServers++;
       } catch (RemoteException | NotBoundException e) {
-        logger.log(Level.SEVERE, "Server at port {0} is down", port);
+        logger.error("Server at port {} is down", port);
       } catch (PromiseException p) {
         upServers++;
-        logger.log(Level.SEVERE, p.getMessage());
+        logger.error(p.getMessage());
       }
     }
 
-    int promisedNumber = promisedPorts.size() + 1;
+    int numPromises = promisedPorts.size() + 1;
     int liveServers = upServers + 1;
-    double upPercent = ((double) (promisedNumber) / liveServers);
+    double upPercent = ((double) (numPromises) / liveServers);
 
     if (upPercent > 0.5) {
-      logger.log(Level.INFO, "Successful consensus for KVStore at port {0} ", serverId);
+      logger.info("Consensus SUCCESS: {} / {} ACCEPTORS promised. Majority reached for {} ",
+          numPromises, liveServers, serverId);
+
       return promisedPorts;
     } else {
-      logger.log(Level.SEVERE, "Unable to get consensus for KVStore at port {0} ", serverId);
+      logger.info("Consensus FAILED: {} / {} ACCEPTORS promised. Majority wasn't reached for {} ",
+          numPromises, liveServers, serverId);
       // Increase the id in case of consensus failure
       this.paxosId = new Date().getTime();
       return null;
@@ -112,10 +116,10 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
   private void sendUploadAcceptRequest(int port, byte[] data, String fileName) {
     try {
       ((DistributedFileServer) LocateRegistry
-          .getRegistry(port).lookup("FileServer"))
+          .getRegistry(port).lookup(Constants.SERVER_NAME))
           .acceptRequest(Operation.UPLOAD_FILE, fileName, data);
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "Failed to Accept Request for KVStore at port {0} ", port);
+      logger.error("Failed to Accept Request for KVStore at port {}", port);
     }
   }
 
@@ -125,7 +129,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
           .getRegistry(port).lookup("FileServer"))
           .acceptRequest(Operation.DELETE_FILE, fileName, data);
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "Failed to Accept Request for KVStore at port {0} ", port);
+      logger.error("Failed to Accept Request for KVStore at port {} ", port);
     }
   }
 
@@ -135,7 +139,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
           .getRegistry(port).lookup("FileServer"))
           .acceptRequest(Operation.RENAME_FILE, fileName, data);
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "Failed to Accept Request for KVStore at port {0} ", port);
+      logger.error("Failed to Accept Request for KVStore at port {} ", port);
     }
   }
 
@@ -173,17 +177,17 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       fos.write(data);
       this.fileNameAndNumber.put(localServerFileCount++, fileName);
       fos.flush();
-      logger.log(Level.INFO, "Upload succeeded for server FileStore at port {0}", serverId);
+      logger.info("Upload succeeded for server FileStore at port {}", serverId);
     } catch (IOException e) {
-      logger.log(Level.SEVERE, "Upload failure for server FileStore at port {0} due to : {1}",
-          new Object[]{serverId, e.getMessage()});
+      logger.error("Upload failure for server FileStore at port {} due to : {}", serverId,
+          e.getMessage());
     } finally {
       try {
         if (fos != null) {
           fos.close();
         }
       } catch (IOException e) {
-        logger.log(Level.SEVERE, "Unable to close stream");
+        logger.error("Unable to close stream");
       }
     }
   }
@@ -195,7 +199,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
 
   @Override
   public void uploadFile(byte[] data, String fileName) throws RemoteException {
-    logger.log(Level.INFO, "Upload request for server FileStore at port {0}", serverId);
+    logger.info("Upload request for server FileStore at port {}", serverId);
     Set<Integer> ports = null;
     // Retries till it does not get consensus
     while (ports == null) {
@@ -207,11 +211,11 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
 
   @Override
   public byte[] downloadFile(String fileId) {
-    logger.log(Level.INFO, "File download request for id {0} and name {1}",
-        new Object[]{fileId, fileNameAndNumber.get(Integer.parseInt(fileId))});
+    logger.info("File download request for id {} and name {}", fileId,
+        fileNameAndNumber.get(Integer.parseInt(fileId)));
     File toFetch = new File(directory, this.fileNameAndNumber.get(Integer.parseInt(fileId)));
     if (!toFetch.exists()) {
-      logger.log(Level.SEVERE, "File Does Not exist on the server");
+      logger.error("File Does Not exist on the server");
       return new byte[]{};
     }
     byte[] downloadedFile = new byte[(int) toFetch.length()];
@@ -221,10 +225,10 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       fin.read(downloadedFile);
       fin.close();
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "Error While reading file");
+      logger.error("Error While reading file");
     }
-    logger.log(Level.INFO, "File download succeeded for id {0} and name {1}",
-        new Object[]{fileId, fileNameAndNumber.get(Integer.parseInt(fileId))});
+    logger.info("File download succeeded for id {} and name {}", fileId,
+        fileNameAndNumber.get(Integer.parseInt(fileId)));
     return downloadedFile;
   }
 

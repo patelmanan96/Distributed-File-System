@@ -14,6 +14,7 @@ public class Constants {
   public static final int DEFAULT_LB_PORT = 9001;
   public static final String RR_LOAD_BALANCER = "RoundRobinLoadBalancer";
   public static final String RANDOM_LOAD_BALANCER = "RandomLoadBalancer";
+  public static final String REPLICA_DIR = "replicas/";
 
 
   private Constants() {
