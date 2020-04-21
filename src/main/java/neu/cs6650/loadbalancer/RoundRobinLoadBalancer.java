@@ -1,9 +1,12 @@
 package neu.cs6650.loadbalancer;
 
+import java.rmi.ConnectException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.List;
+import neu.cs6650.server.DistributedFileServer;
 import neu.cs6650.utils.Constants;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -35,6 +38,34 @@ public class RoundRobinLoadBalancer extends UnicastRemoteObject implements ILoad
     }
     return target;
   }
+
+/*  private List<Integer> getLiveServers() {
+    for (int p : Constants.PORTS) {
+      try {
+        Registry discoveredRegistry = LocateRegistry.getRegistry(Constants.IP, p);
+        for (String serverId : discoveredRegistry.list()) {
+          try {
+            DistributedFileServer discoveredServer =
+                (DistributedFileServer) discoveredRegistry.lookup(serverId);
+            if (!currentServerId.equals(discoveredServer.getServerID())) {
+              isDiscovered = true;
+              server.setStorage(discoveredServer.getStorage());
+              discoveredServer.registerNewServer(currentServerId, server);
+              server.registerNewServer(discoveredServer.getServerID(), discoveredServer);
+            }
+          } catch (ConnectException e) {
+            System.out.println("Unable to connect: " + e.getMessage());
+          }
+        }
+        if (isDiscovered) {
+          break;
+        }
+      } catch (Exception e) {
+        System.out.println("Waiting for other servers...");
+      }
+
+    }
+  }*/
 
   public static void main(String[] args) {
     Configurator.setLevel(logger.getName(), Level.ALL);
