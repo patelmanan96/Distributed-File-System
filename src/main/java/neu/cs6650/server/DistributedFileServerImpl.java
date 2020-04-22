@@ -37,6 +37,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
   private String directory;
   private long paxosId = System.currentTimeMillis();
   private int localServerFileCount;
+  private Response renameResponse = new Response();
 
   public DistributedFileServerImpl(int serverPort) throws RemoteException {
     Configurator.setLevel(logger.getName(), Level.ALL);
@@ -185,7 +186,8 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     try {
       randomAccessFile = new RandomAccessFile(fileName, "rw");
     } catch (FileNotFoundException e) {
-      logger.error("Cannot find File for renaming.");
+      logger.error("Cannot find file for renaming.");
+      renameResponse.setMessage("Cannot find file for renaming.");
     }
 
     fc = randomAccessFile.getChannel();
@@ -200,32 +202,40 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
         logger.info("File is locked for renaming");
       }
     } catch (OverlappingFileLockException | IOException ex) {
-      logger.error("Exception occurred while trying to get a lock on File.");
+      logger.error("File locked for renaming. Try again later.");
+      renameResponse.setMessage("File locked for renaming. Try again later.");
     } catch (InterruptedException e) {
       logger.error("Interrupted exception occurred");
+      renameResponse.setMessage("Interrupted exception occurred.");
     }
     if (!fileLocked) {
       try {
         fc.close();
+        logger.info("Releasing lock on file.");
       } catch (IOException e) {
         logger.error("IO exception occurred");
+        renameResponse.setMessage("IO exception occurred.");
       }
       File fileWithNewName = new File(file.getParent(), newName);
       boolean success = file.renameTo(fileWithNewName);
       if (!success) {
         logger.error("Something went wrong while renaming");
+        renameResponse.setMessage("Something went wrong while renaming file.");
       } else {
         this.fileNameAndNumber.remove(fileId);
         this.fileNameAndNumber.put(fileId, newName);
+        renameResponse.setMessage("Rename successful.");
       }
     } else {
       try {
         fc.close();
+        logger.info("Releasing lock on file.");
       } catch (IOException e) {
         logger.error("Error occurred while closing FileChannel.");
+        renameResponse.setMessage("Something went wrong while renaming file.");
       }
     }
-    logger.info("Releasing lock on file after renaming");
+
 
   }
 
@@ -327,7 +337,6 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
   public Response renameFile(String fileId, String newFileName, Long duration) {
     logger.info("Rename request for server FileStore at port {}", serverId);
     Set<Integer> ports = null;
-    Response resp = new Response();
     String fileName = this.fileNameAndNumber.get(Integer.parseInt(fileId));
 
     while (ports == null) {
@@ -339,12 +348,11 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     ports.forEach(port -> this.sendRenameAcceptRequest(port, data, fileName));
     try {
       this.acceptRequest(Operation.RENAME_FILE, fileName, data);
-      resp.setMessage("RENAME SUCCESS!");
     } catch (IOException e) {
       logger.error("Rename failed due to: {}", e.getMessage());
-      resp.setMessage("RENAME FAILED!");
+      renameResponse.setMessage("RENAME FAILED!");
     }
 
-    return resp;
+    return renameResponse;
   }
 }
