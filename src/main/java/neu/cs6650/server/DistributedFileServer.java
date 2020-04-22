@@ -1,5 +1,6 @@
 package neu.cs6650.server;
 
+import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.Map;
