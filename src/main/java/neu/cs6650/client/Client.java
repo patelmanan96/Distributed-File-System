@@ -15,6 +15,7 @@ import java.util.Scanner;
 import neu.cs6650.loadbalancer.ILoadBalancer;
 import neu.cs6650.server.DistributedFileServer;
 import neu.cs6650.utils.Constants;
+import neu.cs6650.utils.Response;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -120,6 +121,7 @@ public class Client implements IClient {
    */
   private String executeCommand(int command)
       throws RemoteException, FileNotFoundException, IOException {
+    Response resp;
     switch (command) {
       case 1: {
         this.fileList = fileServer.getAllFilesOnServer();
@@ -130,23 +132,23 @@ public class Client implements IClient {
         System.out.println("Enter path of the file to be uploaded: ");
         String filePath = this.reader.nextLine().trim();
         byte[] file = this.getFileFromUser(filePath);
-        fileServer.uploadFile(file, this.getFileNameFromPath(filePath));
-        return "File uploaded successfully.";
+        resp = fileServer.uploadFile(file, this.getFileNameFromPath(filePath));
+        return resp.getMessage();
       }
 
       case 3: {
         System.out.println("Enter fileId: ");
         String fileId = this.reader.nextLine().trim();
-        byte[] downloadedFile = fileServer.downloadFile(fileId);
-        String savedPath = saveDownloadedFile(fileId, downloadedFile);
-        return "File downloaded successfully to: " + savedPath;
+        resp = fileServer.downloadFile(fileId);
+        String savedPath = saveDownloadedFile(fileId, resp.getDownloadedFile());
+        return resp.getMessage() + "Saved file at: " + savedPath;
       }
 
       case 4: {
         System.out.println("Enter fileId: ");
         String fileId = this.reader.nextLine();
-        fileServer.deleteFile(fileId);
-        return "File deleted Successfully";
+        resp = fileServer.deleteFile(fileId);
+        return resp.getMessage();
       }
 
       case 5: {
@@ -156,8 +158,8 @@ public class Client implements IClient {
         String newFileName = this.reader.nextLine();
         System.out.println("Enter duration: ");
         long duration = this.reader.nextLong();
-        fileServer.renameFile(fileId, newFileName, duration);
-        return "File renamed successfully";
+        resp = fileServer.renameFile(fileId, newFileName, duration);
+        return resp.getMessage();
       }
 
       case 6: {

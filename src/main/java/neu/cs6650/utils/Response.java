@@ -16,20 +16,14 @@ public class Response implements Serializable {
   // Message describing what happened on the server side
   private String message;
 
+  private byte[] downloadedFile;
+
   public String getType() {
     return type;
   }
 
   public void setType(String type) {
     this.type = type;
-  }
-
-  public String getReturnValue() {
-    return returnValue;
-  }
-
-  public void setReturnValue(String returnValue) {
-    this.returnValue = returnValue;
   }
 
   public String getMessage() {
@@ -43,5 +37,13 @@ public class Response implements Serializable {
   @Override
   public String toString() {
     return "Response [type=" + type + ", returnValue=" + returnValue + ", message=" + message + "]";
+  }
+
+  public void setDownloadedFile(byte[] downloadedFile) {
+    this.downloadedFile = downloadedFile;
+  }
+
+  public byte[] getDownloadedFile() {
+    return downloadedFile;
   }
 }
