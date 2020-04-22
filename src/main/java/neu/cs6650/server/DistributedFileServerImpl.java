@@ -157,7 +157,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     } else if (operation == Operation.DELETE_FILE) {
       this.deleteFileWithName(fileName);
     } else {
-      // rename logic
+      this.renameFileWithName(fileName, data);
     }
   }
 
@@ -171,7 +171,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     }
   }
 
-  private void renameFileWithName(String fileName, byte[] data) {
+  private void renameFileWithName(String fileName, byte[] data) throws FileNotFoundException {
 
     File file = new File(this.directory, fileName);
     String str = new String(data);
