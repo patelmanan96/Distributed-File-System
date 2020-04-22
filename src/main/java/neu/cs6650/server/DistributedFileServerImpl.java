@@ -29,10 +29,10 @@ import org.apache.logging.log4j.core.config.Configurator;
 public class DistributedFileServerImpl extends UnicastRemoteObject implements
     DistributedFileServer {
 
-  private static Logger logger = LogManager.getLogger(DistributedFileServerImpl.class);
-  static Set<Integer> serverPorts = new HashSet<>(
+  private static Set<Integer> serverPorts = new HashSet<>(
       Arrays.asList(7000, 7001, 7002, 7003, 7004));
-  Map<Integer, String> fileNameAndNumber;
+  private static Logger logger = LogManager.getLogger(DistributedFileServerImpl.class);
+  private Map<Integer, String> fileNameAndNumber;
   private int serverId;
   private String directory;
   private long paxosId = System.currentTimeMillis();
@@ -79,7 +79,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
 
   private Set<Integer> sendPrepare() {
 
-    logger.info("Trying with paxos id {} to get consensus for KVStore at port {} ", paxosId,
+    logger.info("Trying with paxos id {} to get consensus for FileServer at port {} ", paxosId,
         serverId);
 
     Set<Integer> promisedPorts = new HashSet<>();
@@ -125,17 +125,17 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
           .getRegistry(port).lookup(Constants.SERVER_NAME))
           .acceptRequest(Operation.UPLOAD_FILE, fileName, data);
     } catch (Exception e) {
-      logger.error("Failed to Accept Request for KVStore at port {}", port);
+      logger.error("Failed to Accept Request for FileServer at port {}", port);
     }
   }
 
-  private void sendDeleteAcceptRequest(int port, byte[] data, String fileName) {
+  private void sendDeleteAcceptRequest(int port, String fileName) {
     try {
       ((DistributedFileServer) LocateRegistry
           .getRegistry(port).lookup("FileServer"))
-          .acceptRequest(Operation.DELETE_FILE, fileName, data);
+          .acceptRequest(Operation.DELETE_FILE, fileName, null);
     } catch (Exception e) {
-      logger.error("Failed to Accept Request for KVStore at port {} ", port);
+      logger.error("Failed to Accept Request for FileServer at port {} ", port);
     }
   }
 
@@ -145,7 +145,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
           .getRegistry(port).lookup("FileServer"))
           .acceptRequest(Operation.RENAME_FILE, fileName, data);
     } catch (Exception e) {
-      logger.error("Failed to Accept Request for KVStore at port {} ", port);
+      logger.error("Failed to Accept Request for FileServer at port {} ", port);
     }
   }
 
@@ -162,12 +162,13 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
   }
 
 
-  private void deleteFileWithName(String fileName) {
+  private void deleteFileWithName(String fileName) throws IOException {
     File f = new File(this.directory, fileName);
     if (f.delete()) {
-      //log
+      this.fileNameAndNumber.entrySet().removeIf(entry -> entry.getValue().equals(fileName));
+      logger.info("Successfully deleted file at FileServer {} with name {}", serverId, fileName);
     } else {
-      //log
+      throw new IOException("Unable to Delete File with name : " + fileName);
     }
   }
 
@@ -314,10 +315,31 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
 
   @Override
   public Response deleteFile(String fileId) {
+    logger.info("Delete request for server FileStore at port {}", serverId);
+    Set<Integer> ports = null;
     Response resp = new Response();
-    if (true) {
+    int retries = 0;
+    // Retries till it does not get consensus
+    while (retries < Constants.RETRY_COUNT) {
+      ports = this.sendPrepare();
+      retries++;
+    }
+    if (ports == null) {
+      resp.setMessage("DELETE FAILED!");
+      return resp;
+    }
+    String fileName = this.fileNameAndNumber.get(Integer.parseInt(fileId));
+    if (fileName == null) {
+      logger.error("Invalid File Id to delete : {}", fileId);
+      resp.setMessage("Invalid File Id Provided");
+      return resp;
+    }
+    ports.forEach(port -> this.sendDeleteAcceptRequest(port, fileName));
+    try {
+      this.acceptRequest(Operation.DELETE_FILE, fileName, null);
       resp.setMessage("DELETE SUCCESS!");
-    } else {
+    } catch (IOException e) {
+      logger.error("DELETE failed due to: {}", e.getMessage());
       resp.setMessage("DELETE FAILED!");
     }
     return resp;
