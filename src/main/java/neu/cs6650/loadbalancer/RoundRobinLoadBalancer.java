@@ -1,12 +1,12 @@
 package neu.cs6650.loadbalancer;
 
-import java.rmi.ConnectException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
-import neu.cs6650.server.DistributedFileServer;
 import neu.cs6650.utils.Constants;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -21,51 +21,45 @@ public class RoundRobinLoadBalancer extends UnicastRemoteObject implements ILoad
 
   private static Integer position = 0;
   private static Logger logger = LogManager.getLogger(RoundRobinLoadBalancer.class);
+  private LinkedHashSet<Integer> liveServers;
 
   public RoundRobinLoadBalancer() throws RemoteException {
-
+    this.liveServers = new LinkedHashSet<>();
   }
 
   @Override
   public int getServerPort() {
     int target;
+    List<Integer> servers = this.getLiveServers();
+    if(servers.isEmpty()) {
+      throw new IllegalStateException("No live servers detected.");
+    }
     synchronized (position) {
-      if (position > (Constants.PORTS.length - 1)) {
+      if (position > (servers.size() - 1)) {
         position = 0;
       }
-      target = Constants.PORTS[position];
+      target = servers.get(position);
       position++;
     }
     return target;
   }
 
-/*  private List<Integer> getLiveServers() {
+  private List<Integer> getLiveServers() {
+    List<Integer> foundServers = new ArrayList<>();
     for (int p : Constants.PORTS) {
       try {
         Registry discoveredRegistry = LocateRegistry.getRegistry(Constants.IP, p);
-        for (String serverId : discoveredRegistry.list()) {
-          try {
-            DistributedFileServer discoveredServer =
-                (DistributedFileServer) discoveredRegistry.lookup(serverId);
-            if (!currentServerId.equals(discoveredServer.getServerID())) {
-              isDiscovered = true;
-              server.setStorage(discoveredServer.getStorage());
-              discoveredServer.registerNewServer(currentServerId, server);
-              server.registerNewServer(discoveredServer.getServerID(), discoveredServer);
-            }
-          } catch (ConnectException e) {
-            System.out.println("Unable to connect: " + e.getMessage());
-          }
-        }
-        if (isDiscovered) {
-          break;
+        if (discoveredRegistry.list().length > 0) {
+          foundServers.add(p);
         }
       } catch (Exception e) {
         System.out.println("Waiting for other servers...");
       }
-
     }
-  }*/
+    this.liveServers.removeIf(s -> !foundServers.contains(s));
+    this.liveServers.addAll(foundServers);
+    return new ArrayList<>(this.liveServers);
+  }
 
   public static void main(String[] args) {
     Configurator.setLevel(logger.getName(), Level.ALL);
