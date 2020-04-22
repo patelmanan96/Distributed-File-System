@@ -1,8 +1,10 @@
 package neu.cs6650.server;
 
+import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.Map;
+import neu.cs6650.utils.Response;
 
 
 public interface DistributedFileServer extends Remote {
@@ -25,7 +27,7 @@ public interface DistributedFileServer extends Remote {
    * in case of accept
    * @throws RemoteException upon failure
    */
-  void acceptRequest(Operation operation, String fileName, byte[] data) throws RemoteException;
+  void acceptRequest(Operation operation, String fileName, byte[] data) throws RemoteException, IOException;
 
   /**
    * Fetches all files from the neu.cs6650.server
@@ -38,11 +40,12 @@ public interface DistributedFileServer extends Remote {
   /**
    * Upload a file from the neu.cs6650.client
    *
-   * @param fileName to be set
    * @param fileContent to be uploaded from client
+   * @param fileName to be set
    * @throws RemoteException upon failure
+   * @return
    */
-  void uploadFile(byte[] fileContent, String fileName) throws RemoteException;
+  Response uploadFile(byte[] fileContent, String fileName) throws RemoteException;
 
   /**
    * Download a file
@@ -51,15 +54,16 @@ public interface DistributedFileServer extends Remote {
    * @return the file in byte
    * @throws RemoteException upon failure
    */
-  byte[] downloadFile(String fileName) throws RemoteException;
+  Response downloadFile(String fileName) throws RemoteException;
 
   /**
    * Delete file from neu.cs6650.server
    *
    * @param fileId of file to be deleted
    * @throws RemoteException upon failure
+   * @return
    */
-  void deleteFile(String fileId) throws RemoteException;
+  Response deleteFile(String fileId) throws RemoteException;
 
   /**
    * Rename file on the neu.cs6650.server
@@ -67,6 +71,7 @@ public interface DistributedFileServer extends Remote {
    * @param fileId      of file to be deleted
    * @param newFileName of the file to be renamed
    * @throws RemoteException upon failure
+   * @return
    */
-  void renameFile(String fileId, String newFileName, Long duration) throws RemoteException;
+  Response renameFile(String fileId, String newFileName, Long duration) throws RemoteException;
 }
