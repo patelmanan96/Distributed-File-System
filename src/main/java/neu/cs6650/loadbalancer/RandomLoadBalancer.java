@@ -5,6 +5,8 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import neu.cs6650.utils.Constants;
 import org.apache.logging.log4j.Level;
@@ -26,8 +28,27 @@ public class RandomLoadBalancer extends UnicastRemoteObject implements ILoadBala
 
   @Override
   public int getServerPort() {
-    int randomInt = new Random().nextInt(Constants.PORTS.length);
-    return Constants.PORTS[randomInt];
+    List<Integer> liveServers = this.getLiveServers();
+    if(liveServers.isEmpty()) {
+      throw new IllegalStateException("No live servers detected.");
+    }
+    int randomInt = new Random().nextInt(liveServers.size());
+    return liveServers.get(randomInt);
+  }
+
+  private List<Integer> getLiveServers() {
+    List<Integer> foundServers = new ArrayList<>();
+    for (int p : Constants.PORTS) {
+      try {
+        Registry discoveredRegistry = LocateRegistry.getRegistry(Constants.IP, p);
+        if (discoveredRegistry.list().length > 0) {
+          foundServers.add(p);
+        }
+      } catch (Exception e) {
+        System.out.println("Waiting for other servers...");
+      }
+    }
+    return foundServers;
   }
 
   public static void main(String[] args) {
