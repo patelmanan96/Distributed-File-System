@@ -19,11 +19,12 @@ To use this application, you will need to navigate to the **./jars** folder. And
 	**java - jar client.jar**
 	
 	* You can repeat the above step to start multiple clients on separate terminal. 
-	* Once a client connects to a server through the load balancer you will be presented with the following menu:  
-			*1. List all files*  		
-			*2. Upload file*  
-			*3. Download file*  
-			*4. Delete file*  
-			*5. Rename file*  
-			*6. Exit*
+	* Once a client connects to a server through the load balancer you will be presented with the following menu:
+	
+			1. List all files    		
+			2. Upload file    
+			3. Download file  
+			4. Delete file  
+			5. Rename file  
+			6. Exit
 	* Select an option by entering a number and proceed according to the instructions.
