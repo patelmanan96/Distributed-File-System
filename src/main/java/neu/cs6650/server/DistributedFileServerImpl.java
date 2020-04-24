@@ -38,7 +38,8 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
   private long paxosId = System.currentTimeMillis();
   private int localServerFileCount;
   private Response renameResponse = new Response();
-  Set<Integer> lockedFileIds = new HashSet<Integer>();
+  Set<String> lockedFileIds = new HashSet<String>();
+  private boolean isDeletePossible;
 
   public DistributedFileServerImpl(int serverPort) throws RemoteException {
     Configurator.setLevel(logger.getName(), Level.ALL);
@@ -165,6 +166,11 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
 
 
   private void deleteFileWithName(String fileName) throws IOException {
+    if (this.lockedFileIds.contains(fileName)) {
+      this.isDeletePossible = false;
+      return;
+    }
+    this.isDeletePossible = true;
     File f = new File(this.directory, fileName);
     if (f.delete()) {
       this.fileNameAndNumber.entrySet().removeIf(entry -> entry.getValue().equals(fileName));
@@ -199,6 +205,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       if (null != fileLock) {
         logger.info("Renaming {} to {}", fileName, newName);
         fileLocked = false;
+        this.lockedFileIds.add(fileName);
         Thread.sleep(duration);
       } else {
         logger.info("File is locked for renaming");
@@ -214,7 +221,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       try {
         fc.close();
         logger.info("Releasing lock on file.");
-        this.lockedFileIds.remove(fileId);
+        this.lockedFileIds.remove(fileName);
       } catch (IOException e) {
         logger.error("IO exception occurred");
         renameResponse.setMessage("IO exception occurred.");
@@ -227,7 +234,6 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       } else {
         this.fileNameAndNumber.remove(fileId);
         this.fileNameAndNumber.put(fileId, newName);
-        this.lockedFileIds.add(fileId);
         renameResponse.setMessage("Rename successful.");
       }
     } else {
@@ -239,8 +245,9 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
         renameResponse.setMessage("Something went wrong while renaming file.");
       }
     }
-
-
+    if(this.lockedFileIds.contains(fileName)) {
+      this.lockedFileIds.remove(fileName);
+    }
   }
 
   private void writeToFile(String fileName, byte[] data) throws IOException {
@@ -333,10 +340,6 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     Response resp = new Response();
     int retries = 0;
     // Retries till it does not get consensus
-    if (this.lockedFileIds.contains(fileId)) {
-      resp.setMessage("File locked, cannot delete. Try again later.");
-      return resp;
-    }
     while (ports == null && retries < Constants.RETRY_COUNT) {
       ports = this.sendPrepare();
       retries++;
@@ -358,6 +361,9 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     } catch (IOException e) {
       logger.error("DELETE failed due to: {}", e.getMessage());
       resp.setMessage("DELETE FAILED!");
+    }
+    if (!this.isDeletePossible) {
+      resp.setMessage("File locked, cannot delete. Try again later.");
     }
     return resp;
   }
@@ -388,7 +394,6 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       logger.error("Rename failed due to: {}", e.getMessage());
       renameResponse.setMessage("RENAME FAILED!");
     }
-    this.lockedFileIds.remove(str.split(",")[2]);
     return renameResponse;
   }
 }
