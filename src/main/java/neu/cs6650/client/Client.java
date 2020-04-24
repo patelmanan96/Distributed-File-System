@@ -173,7 +173,11 @@ public class Client implements IClient {
   }
 
   private String getFileNameFromPath(String path) {
-    return path.substring(path.lastIndexOf('/') + 1);
+    if (path.lastIndexOf('/') != -1) {
+      return path.substring(path.lastIndexOf('/') + 1);
+    } else {
+      return path.substring(path.lastIndexOf('\\') + 1);
+    }
   }
 
   /**
