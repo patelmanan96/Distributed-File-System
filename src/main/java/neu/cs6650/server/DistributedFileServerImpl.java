@@ -38,7 +38,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
   private long paxosId = System.currentTimeMillis();
   private int localServerFileCount;
   private Response renameResponse = new Response();
-  Set<String> lockedFileIds = new HashSet<>();
+  Set<Integer> lockedFileIds = new HashSet<Integer>();
 
   public DistributedFileServerImpl(int serverPort) throws RemoteException {
     Configurator.setLevel(logger.getName(), Level.ALL);
@@ -214,6 +214,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       try {
         fc.close();
         logger.info("Releasing lock on file.");
+        this.lockedFileIds.remove(fileId);
       } catch (IOException e) {
         logger.error("IO exception occurred");
         renameResponse.setMessage("IO exception occurred.");
@@ -226,6 +227,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       } else {
         this.fileNameAndNumber.remove(fileId);
         this.fileNameAndNumber.put(fileId, newName);
+        this.lockedFileIds.add(fileId);
         renameResponse.setMessage("Rename successful.");
       }
     } else {
@@ -276,7 +278,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     Response resp = new Response();
     int retries = 0;
     // Retries till it does not get consensus
-    while (retries < Constants.RETRY_COUNT) {
+    while (ports == null && retries < Constants.RETRY_COUNT) {
       ports = this.sendPrepare();
       retries++;
     }
@@ -331,11 +333,11 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     Response resp = new Response();
     int retries = 0;
     // Retries till it does not get consensus
-    if(this.lockedFileIds.contains(fileId)) {
+    if (this.lockedFileIds.contains(fileId)) {
       resp.setMessage("File locked, cannot delete. Try again later.");
       return resp;
     }
-    while (retries < Constants.RETRY_COUNT) {
+    while (ports == null && retries < Constants.RETRY_COUNT) {
       ports = this.sendPrepare();
       retries++;
     }
@@ -346,13 +348,14 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     String fileName = this.fileNameAndNumber.get(Integer.parseInt(fileId));
     if (fileName == null) {
       logger.error("Invalid File Id to delete : {}", fileId);
-      resp.setMessage("Invalid File Id Provided");
+      resp.setMessage("DELETE FAILED! Invalid File Id Provided");
       return resp;
     }
     ports.forEach(port -> this.sendDeleteAcceptRequest(port, fileName));
     try {
       this.acceptRequest(Operation.DELETE_FILE, fileName, null);
       resp.setMessage("DELETE SUCCESS!");
+      this.fileNameAndNumber.remove(fileId);
     } catch (IOException e) {
       logger.error("DELETE failed due to: {}", e.getMessage());
       resp.setMessage("DELETE FAILED!");
@@ -364,10 +367,17 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
   public Response renameFile(String fileId, String newFileName, Long duration) {
     logger.info("Rename request for server FileStore at port {}", serverId);
     Set<Integer> ports = null;
+    int retries = 0;
     String fileName = this.fileNameAndNumber.get(Integer.parseInt(fileId));
-    this.lockedFileIds.add(fileId);
-    while (ports == null) {
+
+    while (ports == null && retries < Constants.RETRY_COUNT) {
       ports = this.sendPrepare();
+      retries++;
+    }
+
+    if (ports == null) {
+      renameResponse.setMessage("RENAME FAILED!");
+      return renameResponse;
     }
     String str = newFileName.concat(",").concat(String.valueOf(duration)).concat(",")
         .concat(fileId);
