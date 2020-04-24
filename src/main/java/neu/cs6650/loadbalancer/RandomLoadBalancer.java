@@ -8,11 +8,9 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import neu.cs6650.utils.Constants;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.config.Configurator;
 
 /**
  * This class represents a Random Loadbalancer. This loadbalancer selects a server port from a given
@@ -20,7 +18,7 @@ import org.apache.logging.log4j.core.config.Configurator;
  */
 public class RandomLoadBalancer extends UnicastRemoteObject implements ILoadBalancer {
 
-  private static Logger logger = LogManager.getLogger(RandomLoadBalancer.class);
+  private static Logger logger = Logger.getLogger(RandomLoadBalancer.class.getName());;
 
   public RandomLoadBalancer() throws RemoteException {
 
@@ -29,7 +27,7 @@ public class RandomLoadBalancer extends UnicastRemoteObject implements ILoadBala
   @Override
   public int getServerPort() {
     List<Integer> liveServers = this.getLiveServers();
-    if(liveServers.isEmpty()) {
+    if (liveServers.isEmpty()) {
       throw new IllegalStateException("No live servers detected.");
     }
     int randomInt = new Random().nextInt(liveServers.size());
@@ -52,12 +50,12 @@ public class RandomLoadBalancer extends UnicastRemoteObject implements ILoadBala
   }
 
   public static void main(String[] args) {
-    Configurator.setLevel(logger.getName(), Level.ALL);
     logger.info("Round-Robin Load balancer started...");
 
     int portNumber;
     if (args.length < 1) {
-      logger.warn("No port provided, using default port: {}", Constants.DEFAULT_LB_PORT);
+      logger.log(Level.WARNING, "No port provided, using default port: {0}",
+          Constants.DEFAULT_LB_PORT);
       portNumber = Constants.DEFAULT_LB_PORT;
     } else {
       portNumber = Integer.parseInt(args[0]);
@@ -67,10 +65,10 @@ public class RandomLoadBalancer extends UnicastRemoteObject implements ILoadBala
       ILoadBalancer loadBalancer = new RandomLoadBalancer();
       Registry registry = LocateRegistry.createRegistry(portNumber);
       registry.bind(Constants.RANDOM_LOAD_BALANCER, loadBalancer);
-      logger.info("Object binding is done");
+      logger.log(Level.INFO, "Object binding is done");
 
     } catch (Exception e) {
-      logger.error(e.getMessage());
+      logger.log(Level.SEVERE, e.getMessage());
     }
   }
 }
