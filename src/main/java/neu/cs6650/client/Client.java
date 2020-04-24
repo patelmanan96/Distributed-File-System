@@ -12,14 +12,12 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import neu.cs6650.loadbalancer.ILoadBalancer;
 import neu.cs6650.server.DistributedFileServer;
 import neu.cs6650.utils.Constants;
 import neu.cs6650.utils.Response;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.config.Configurator;
 
 public class Client implements IClient {
 
@@ -30,10 +28,9 @@ public class Client implements IClient {
   private int port;
   private Map<Integer, String> fileList;
   private Scanner reader;
-  private Logger logger = LogManager.getLogger(this.getClass());
+  private static Logger logger = Logger.getLogger(Client.class.getName());
 
   public Client(String address) {
-    Configurator.setLevel(logger.getName(), Level.ALL);
     this.address = address;
     this.reader = new Scanner(new InputStreamReader(System.in));
   }
@@ -61,7 +58,8 @@ public class Client implements IClient {
         this.port = this.loadBalancer.getServerPort();
         fileServer = (DistributedFileServer) Naming
             .lookup("//" + address + ":" + port + "/" + Constants.SERVER_NAME);
-        logger.info("Remote connection established. Host: {} Port: {}", address, port);
+        logger.log(Level.INFO, "Remote connection established. Host: {0} Port: {1}",
+            new Object[]{address, port});
 
         int command = 0;
 
@@ -74,17 +72,18 @@ public class Client implements IClient {
             reader.nextLine();
             try {
               String response = this.executeCommand(command);
-              logger.info("Response: {}", response);
+              logger.log(Level.INFO, "Response: {0}", response);
             } catch (FileNotFoundException e) {
-              logger.error("Could not find file. {}", e.getMessage());
+              logger.log(Level.SEVERE, "Could not find file. {0}", e.getMessage());
             } catch (IOException e) {
-              logger.error("Error occurred while reading/writing to file. {}", e.getMessage());
+              logger.log(Level.SEVERE, "Error occurred while reading/writing to file. {0}",
+                  e.getMessage());
             } catch (IllegalArgumentException e) {
-              logger.error(e.getMessage());
+              logger.log(Level.SEVERE, e.getMessage());
             }
           } catch (Exception e) {
-            logger.error(e);
-            logger.info("Attempting to re-establish connection.");
+            logger.log(Level.SEVERE, e.getMessage());
+            logger.log(Level.INFO, "Attempting to re-establish connection.");
             break;
           }
 
@@ -94,7 +93,7 @@ public class Client implements IClient {
           break;
         }
       } catch (Exception e) {
-        logger.error(e);
+        logger.log(Level.SEVERE, e.getMessage());
       }
     }
   }

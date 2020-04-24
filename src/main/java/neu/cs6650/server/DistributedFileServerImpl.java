@@ -19,19 +19,17 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import neu.cs6650.utils.Constants;
 import neu.cs6650.utils.Response;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.config.Configurator;
 
 public class DistributedFileServerImpl extends UnicastRemoteObject implements
     DistributedFileServer {
 
   private static Set<Integer> serverPorts = new HashSet<>(
       Arrays.asList(7000, 7001, 7002, 7003, 7004));
-  private static Logger logger = LogManager.getLogger(DistributedFileServerImpl.class);
+  private static Logger logger = Logger.getLogger(DistributedFileServerImpl.class.getName());
   private Map<Integer, String> fileNameAndNumber;
   private int serverId;
   private String directory;
@@ -42,7 +40,6 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
   private boolean isDeletePossible;
 
   public DistributedFileServerImpl(int serverPort) throws RemoteException {
-    Configurator.setLevel(logger.getName(), Level.ALL);
     serverPorts.remove(serverPort);
     serverId = serverPort;
     fileNameAndNumber = new HashMap<>();
@@ -50,7 +47,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     File newDir = new File(directory);
     this.delete(newDir);
     if (!newDir.mkdir()) {
-      logger.error("Unable to create directory");
+      logger.log(Level.SEVERE, "Unable to create directory");
       throw new RuntimeException();
     }
     localServerFileCount = 0;
@@ -63,27 +60,27 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       }
     }
     if (!f.delete()) {
-      logger.error("Failed to delete file : {}", f);
+      logger.log(Level.SEVERE, "Failed to delete file : {0}", f);
     }
   }
 
   @Override
   public long prepare(long id) {
-    logger.info("Proposal Id at port {} is {} and current server paxos Id is {}", serverId, id,
-        paxosId);
+    logger.log(Level.INFO, "Proposal Id at port {0} is {1} and current server paxos Id is {2}",
+        new Object[]{serverId, id, paxosId});
 
     if (this.paxosId > id) {
       throw new PromiseException("Requester Id lower than Acceptor Id");
     }
-    logger.info("New paxos id at port {} is {}", serverId, paxosId);
+    logger.log(Level.INFO, "New paxos id at port {0} is {1}", new Object[]{serverId, paxosId});
     this.paxosId = id;
     return this.paxosId;
   }
 
   private Set<Integer> sendPrepare() {
 
-    logger.info("Trying with paxos id {} to get consensus for FileServer at port {} ", paxosId,
-        serverId);
+    logger.log(Level.INFO, "Trying with paxos id {0} to get consensus for FileServer at port {1} ",
+        new Object[]{paxosId, serverId});
 
     Set<Integer> promisedPorts = new HashSet<>();
     int upServers = 0;
@@ -94,13 +91,14 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
             .lookup(Constants.SERVER_NAME);
         long response = dfs.prepare(this.paxosId);
         promisedPorts.add(port);
-        logger.info("Response received from Server at port {} with id {}", port, response);
+        logger.log(Level.INFO, "Response received from Server at port {0} with id {1}",
+            new Object[]{port, response});
         upServers++;
       } catch (RemoteException | NotBoundException e) {
-        logger.error("Server at port {} is down", port);
+        logger.log(Level.SEVERE, "Server at port {0} is down", port);
       } catch (PromiseException p) {
         upServers++;
-        logger.error(p.getMessage());
+        logger.log(Level.SEVERE, p.getMessage());
       }
     }
 
@@ -109,13 +107,15 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     double upPercent = ((double) (numPromises) / liveServers);
 
     if (upPercent > 0.5) {
-      logger.info("Consensus SUCCESS: {} / {} ACCEPTORS promised. Majority reached for {} ",
-          numPromises, liveServers, serverId);
+      logger.log(Level.INFO,
+          "Consensus SUCCESS: {0} / {1} ACCEPTORS promised. Majority reached for {2} ",
+          new Object[]{numPromises, liveServers, serverId});
 
       return promisedPorts;
     } else {
-      logger.info("Consensus FAILED: {} / {} ACCEPTORS promised. Majority wasn't reached for {} ",
-          numPromises, liveServers, serverId);
+      logger.log(Level.SEVERE,
+          "Consensus FAILED: {0} / {1} ACCEPTORS promised. Majority was not reached for {2} ",
+          new Object[]{numPromises, liveServers, serverId});
       // Increase the id in case of consensus failure
       this.paxosId = new Date().getTime();
       return null;
@@ -128,7 +128,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
           .getRegistry(port).lookup(Constants.SERVER_NAME))
           .acceptRequest(Operation.UPLOAD_FILE, fileName, data);
     } catch (Exception e) {
-      logger.error("Failed to Accept Request for FileServer at port {}", port);
+      logger.log(Level.SEVERE, "Failed to Accept Request for FileServer at port {}", port);
     }
   }
 
@@ -138,7 +138,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
           .getRegistry(port).lookup("FileServer"))
           .acceptRequest(Operation.DELETE_FILE, fileName, null);
     } catch (Exception e) {
-      logger.error("Failed to Accept Request for FileServer at port {} ", port);
+      logger.log(Level.SEVERE, "Failed to Accept Request for FileServer at port {0} ", port);
     }
   }
 
@@ -148,7 +148,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
           .getRegistry(port).lookup("FileServer"))
           .acceptRequest(Operation.RENAME_FILE, fileName, data);
     } catch (Exception e) {
-      logger.error("Failed to Accept Request for FileServer at port {} ", port);
+      logger.log(Level.SEVERE, "Failed to Accept Request for FileServer at port {0} ", port);
     }
   }
 
@@ -174,7 +174,8 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     File f = new File(this.directory, fileName);
     if (f.delete()) {
       this.fileNameAndNumber.entrySet().removeIf(entry -> entry.getValue().equals(fileName));
-      logger.info("Successfully deleted file at FileServer {} with name {}", serverId, fileName);
+      logger.log(Level.INFO, "Successfully deleted file at FileServer {0} with name {1}",
+          new Object[]{serverId, fileName});
     } else {
       throw new IOException("Unable to Delete File with name : " + fileName);
     }
@@ -194,7 +195,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     try {
       randomAccessFile = new RandomAccessFile(fileName, "rw");
     } catch (FileNotFoundException e) {
-      logger.error("Cannot find file for renaming.");
+      logger.log(Level.SEVERE, "Cannot find file for renaming.");
       renameResponse.setMessage("Cannot find file for renaming.");
     }
 
@@ -203,7 +204,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     try {
       FileLock fileLock = fc.tryLock();
       if (null != fileLock) {
-        logger.info("Renaming {} to {}", fileName, newName);
+        logger.log(Level.INFO, "Renaming {0} to {1}", new Object[]{fileName, newName});
         fileLocked = false;
         this.lockedFileIds.add(fileName);
         Thread.sleep(duration);
@@ -211,10 +212,10 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
         logger.info("File is locked for renaming");
       }
     } catch (OverlappingFileLockException | IOException ex) {
-      logger.error("File locked for renaming. Try again later.");
+      logger.log(Level.SEVERE, "File locked for renaming. Try again later.");
       renameResponse.setMessage("File locked for renaming. Try again later.");
     } catch (InterruptedException e) {
-      logger.error("Interrupted exception occurred");
+      logger.log(Level.SEVERE, "Interrupted exception occurred");
       renameResponse.setMessage("Interrupted exception occurred.");
     }
     if (!fileLocked) {
@@ -223,13 +224,13 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
         logger.info("Releasing lock on file.");
         this.lockedFileIds.remove(fileName);
       } catch (IOException e) {
-        logger.error("IO exception occurred");
+        logger.log(Level.SEVERE, "IO exception occurred {0}", e.getMessage());
         renameResponse.setMessage("IO exception occurred.");
       }
       File fileWithNewName = new File(file.getParent(), newName);
       boolean success = file.renameTo(fileWithNewName);
       if (!success) {
-        logger.error("Something went wrong while renaming");
+        logger.log(Level.SEVERE, "Something went wrong while renaming");
         renameResponse.setMessage("Something went wrong while renaming file.");
       } else {
         this.fileNameAndNumber.remove(fileId);
@@ -241,11 +242,11 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
         fc.close();
         logger.info("Releasing lock on file.");
       } catch (IOException e) {
-        logger.error("Error occurred while closing FileChannel.");
+        logger.log(Level.SEVERE, "Error occurred while closing FileChannel.");
         renameResponse.setMessage("Something went wrong while renaming file.");
       }
     }
-    if(this.lockedFileIds.contains(fileName)) {
+    if (this.lockedFileIds.contains(fileName)) {
       this.lockedFileIds.remove(fileName);
     }
   }
@@ -261,7 +262,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     fos.write(data);
     this.fileNameAndNumber.put(localServerFileCount++, fileName);
     fos.flush();
-    logger.info("Upload succeeded for server FileStore at port {}", serverId);
+    logger.log(Level.INFO, "Upload succeeded for server FileStore at port {0}", serverId);
      /*catch (IOException e) {
       logger.error("Upload failure for server FileStore at port {} due to : {}", serverId,
           e.getMessage());
@@ -269,7 +270,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     try {
       fos.close();
     } catch (IOException e) {
-      logger.error("Unable to close stream");
+      logger.log(Level.SEVERE, "Unable to close stream");
     }
   }
 
@@ -280,7 +281,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
 
   @Override
   public Response uploadFile(byte[] data, String fileName) throws RemoteException {
-    logger.info("Upload request for server FileStore at port {}", serverId);
+    logger.log(Level.INFO, "Upload request for server FileStore at port {0}", serverId);
     Set<Integer> ports = null;
     Response resp = new Response();
     int retries = 0;
@@ -298,7 +299,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       this.acceptRequest(Operation.UPLOAD_FILE, fileName, data);
       resp.setMessage("UPLOAD SUCCESS!");
     } catch (IOException e) {
-      logger.error("Upload failed due to: {}", e.getMessage());
+      logger.log(Level.SEVERE, "Upload failed due to: {0}", e.getMessage());
       resp.setMessage("UPLOAD FAILED!");
     }
     return resp;
@@ -306,12 +307,12 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
 
   @Override
   public Response downloadFile(String fileId) {
-    logger.info("File download request for id {} and name {}", fileId,
-        fileNameAndNumber.get(Integer.parseInt(fileId)));
+    logger.log(Level.INFO, "File download request for id {0} and name {1}", new Object[]{fileId,
+        fileNameAndNumber.get(Integer.parseInt(fileId))});
     Response resp = new Response();
     File toFetch = new File(directory, this.fileNameAndNumber.get(Integer.parseInt(fileId)));
     if (!toFetch.exists()) {
-      logger.error("File Does Not exist on the server");
+      logger.log(Level.SEVERE, "File Does Not exist on the server");
       resp.setMessage("DOWNLOAD FAILED!. File Does Not exist on the server");
       resp.setDownloadedFile(new byte[]{});
       return resp;
@@ -323,10 +324,10 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       fin.read(downloadedFile);
       fin.close();
     } catch (Exception e) {
-      logger.error("Error While reading file");
+      logger.log(Level.SEVERE, "Error While reading file");
     }
-    logger.info("File download succeeded for id {} and name {}", fileId,
-        fileNameAndNumber.get(Integer.parseInt(fileId)));
+    logger.log(Level.INFO, "File download succeeded for id {0} and name {1}", new Object[]{fileId,
+        fileNameAndNumber.get(Integer.parseInt(fileId))});
 
     resp.setMessage("DOWNLOAD SUCCESS!" + fileNameAndNumber.get(Integer.parseInt(fileId)));
     resp.setDownloadedFile(downloadedFile);
@@ -335,7 +336,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
 
   @Override
   public Response deleteFile(String fileId) {
-    logger.info("Delete request for server FileStore at port {}", serverId);
+    logger.log(Level.INFO, "Delete request for server FileStore at port {0}", serverId);
     Set<Integer> ports = null;
     Response resp = new Response();
     int retries = 0;
@@ -350,7 +351,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     }
     String fileName = this.fileNameAndNumber.get(Integer.parseInt(fileId));
     if (fileName == null) {
-      logger.error("Invalid File Id to delete : {}", fileId);
+      logger.log(Level.SEVERE, "Invalid File Id to delete : {0}", fileId);
       resp.setMessage("DELETE FAILED! Invalid File Id Provided");
       return resp;
     }
@@ -359,7 +360,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
       this.acceptRequest(Operation.DELETE_FILE, fileName, null);
       resp.setMessage("DELETE SUCCESS!");
     } catch (IOException e) {
-      logger.error("DELETE failed due to: {}", e.getMessage());
+      logger.log(Level.SEVERE, "DELETE failed due to: {0}", e.getMessage());
       resp.setMessage("DELETE FAILED!");
     }
     if (!this.isDeletePossible) {
@@ -370,7 +371,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
 
   @Override
   public Response renameFile(String fileId, String newFileName, Long duration) {
-    logger.info("Rename request for server FileStore at port {}", serverId);
+    logger.log(Level.INFO, "Rename request for server FileStore at port {0}", serverId);
     Set<Integer> ports = null;
     int retries = 0;
     String fileName = this.fileNameAndNumber.get(Integer.parseInt(fileId));
@@ -391,7 +392,7 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     try {
       this.acceptRequest(Operation.RENAME_FILE, fileName, data);
     } catch (IOException e) {
-      logger.error("Rename failed due to: {}", e.getMessage());
+      logger.log(Level.SEVERE, "Rename failed due to: {0}", e.getMessage());
       renameResponse.setMessage("RENAME FAILED!");
     }
     return renameResponse;

@@ -2,3 +2,7 @@
 *.iml
 target/
 700*/
+out/
+src/client_jar/
+src/fileserver_jar/
+src/loadbalancer_jar/
