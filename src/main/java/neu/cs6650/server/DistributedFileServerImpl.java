@@ -355,7 +355,6 @@ public class DistributedFileServerImpl extends UnicastRemoteObject implements
     try {
       this.acceptRequest(Operation.DELETE_FILE, fileName, null);
       resp.setMessage("DELETE SUCCESS!");
-      this.fileNameAndNumber.remove(fileId);
     } catch (IOException e) {
       logger.error("DELETE failed due to: {}", e.getMessage());
       resp.setMessage("DELETE FAILED!");
